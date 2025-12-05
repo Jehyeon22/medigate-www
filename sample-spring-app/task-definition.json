@@ -1,0 +1,80 @@
+{
+  "family": "sample-task",
+  "networkMode": "bridge",
+  "requiresCompatibilities": ["EC2"],
+  "executionRoleArn": "arn:aws:iam::304936889031:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::304936889031:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "sample-app",
+      "image": "304936889031.dkr.ecr.ap-northeast-2.amazonaws.com/sample-spring-app:latest",
+      "cpu": 512,
+      "memory": 1024,
+      "memoryReservation": 512,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 0,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "DB_NAME", "value": "sampledb" },
+        { "name": "EFS_MOUNT_PATH", "value": "/mnt/efs/uploads" },
+        { "name": "JAVA_OPTS", "value": "-Xms512m -Xmx1024m -XX:+UseG1GC" }
+      ],
+      "secrets": [
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:host::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:port::"
+        },
+        {
+          "name": "DB_USERNAME",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:username::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:password::"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "efs-volume",
+          "containerPath": "/mnt/efs/uploads",
+          "readOnly": false
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/sample-app",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "efs-volume",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-xxxxxxxx",
+        "rootDirectory": "/",
+        "transitEncryption": "ENABLED"
+      }
+    }
+  ]
+}
