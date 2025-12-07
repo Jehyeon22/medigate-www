@@ -9,7 +9,7 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: sample-spring-app
-  ECS_CLUSTER: sample-cluster
+  ECS_CLUSTER: test-ecs-cluster
   ECS_SERVICE: sample-service
   CONTAINER_NAME: sample-app
 
