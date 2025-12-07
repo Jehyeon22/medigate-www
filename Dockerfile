@@ -22,13 +22,12 @@ FROM amazoncorretto:11-alpine
 
 WORKDIR /app
 
-# 타임존 및 헬스체크 도구 설치 (wget 대신 curl 사용)
+# 타임존 및 헬스체크 도구 설치
 RUN apk add --no-cache tzdata curl && \
     cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
     echo "Asia/Seoul" > /etc/timezone
 
-# 보안: non-root 사용자로 실행
-# 🔑 EFS 액세스 포인트와 UID/GID를 1000으로 명시적으로 일치시키는 핵심 수정
+# 🔑 EFS 액세스 포인트와 UID/GID 1000으로 명시적으로 일치시키는 핵심 수정
 RUN addgroup -S spring -g 1000 && adduser -S spring -G spring -u 1000
 
 # EFS 마운트 포인트 디렉토리 생성
@@ -40,13 +39,11 @@ RUN chown spring:spring app.jar
 
 USER spring:spring
 
-# 💡 환경변수 (보안 강화 및 컨테이너 최적화)
-# 민감 정보(DB_PASSWORD 등)는 삭제하고 ECS Secrets로 주입해야 합니다.
-# JVM 최적화: 컨테이너 메모리를 자동으로 인식하도록 설정
+# 💡 환경변수 (컨테이너 최적화)
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:+UseG1GC"
 ENV EFS_MOUNT_PATH=/mnt/efs/uploads
 
-# 헬스체크: curl을 사용하여 더 안정적인 체크로 변경
+# 헬스체크
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl --fail http://localhost:8080/api/health || exit 1
 
