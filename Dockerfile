@@ -18,39 +18,44 @@ RUN gradle bootJar --no-daemon
 # ===========================================
 # 실행 스테이지
 # ===========================================
+# amazoncorretto:11-alpine 이미지는 가볍지만, 운영 편의를 위해 'full' 태그를 사용하거나, 
+# 'debian' 기반 이미지를 사용하는 것을 고려할 수 있습니다. 여기서는 alpine을 유지합니다.
 FROM amazoncorretto:11-alpine
 
 WORKDIR /app
 
-# 타임존 설정
-RUN apk add --no-cache tzdata && \
+# 기본 패키지 및 타임존 설정
+# curl을 추가하여 HEALTHCHECK에 wget 대신 사용 (더 흔한 방식)
+RUN apk add --no-cache tzdata curl && \
     cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
     echo "Asia/Seoul" > /etc/timezone
 
-# 보안: non-root 사용자로 실행
-RUN addgroup -S spring && adduser -S spring -G spring
+# EFS 액세스 포인트와 UID/GID를 일치시키기 위해 명시적으로 1000으로 설정 (핵심 수정)
+# EFS 액세스 포인트 설정: POSIX 사용자 1000:1000과 일치해야 합니다.
+RUN addgroup -S spring -g 1000 && adduser -S spring -G spring -u 1000
 
-# EFS 마운트 포인트 디렉토리 생성
+# EFS 마운트 포인트 디렉토리 생성 및 소유권 변경
 RUN mkdir -p /mnt/efs/uploads && chown -R spring:spring /mnt/efs
 
-# JAR 파일 복사
+# JAR 파일 복사 및 소유권 변경
 COPY --from=build /app/build/libs/app.jar app.jar
 RUN chown spring:spring app.jar
 
+# spring 사용자로 전환
 USER spring:spring
 
-# 환경변수 (기본값)
-ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC"
-ENV DB_HOST=localhost
-ENV DB_PORT=3306
-ENV DB_NAME=sampledb
-ENV DB_USERNAME=admin
-ENV DB_PASSWORD=password
+# 환경변수 (민감 정보는 제거하고, ECS 태스크 정의를 통해 Secrets Manager로 주입)
+# JVM 최적화: 컨테이너 메모리를 자동으로 인식하도록 설정
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:+UseG1GC"
 ENV EFS_MOUNT_PATH=/mnt/efs/uploads
 
-# 헬스체크
+# DB 관련 환경변수 (제거됨): ECS 태스크 정의의 'secrets' 섹션을 통해 주입해야 합니다.
+# ENV DB_HOST=...
+# ENV DB_PASSWORD=...
+
+# 헬스체크: curl을 사용하여 더 신뢰성 높은 체크
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
+    CMD curl --fail http://localhost:8080/api/health || exit 1
 
 EXPOSE 8080
 
