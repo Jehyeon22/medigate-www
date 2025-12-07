@@ -1,107 +1,63 @@
-name: Deploy to AWS ECS
+# ===========================================
+# Dockerfile for Spring Boot Application
+# Java 11 + JAR 직접 실행 방식
+# ===========================================
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # 수동 실행 가능
+# 빌드 스테이지
+FROM gradle:7.5-jdk11 AS build
+WORKDIR /app
 
-env:
-  AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: sample-spring-app
-  ECS_CLUSTER: test-ecs-cluster
-  ECS_SERVICE: sample-service
-  CONTAINER_NAME: sample-app
+# Gradle 캐시 최적화를 위해 의존성 먼저 복사
+COPY build.gradle settings.gradle ./
+RUN gradle dependencies --no-daemon || true
 
-jobs:
-  deploy:
-    name: Build and Deploy to ECS
-    runs-on: ubuntu-latest
-    
-    # OIDC 토큰 발급을 위한 권한 설정
-    permissions:
-      id-token: write
-      contents: read
-    
-    steps:
-      # 1. 코드 체크아웃
-      - name: Checkout code
-        uses: actions/checkout@v4
+# 소스 코드 복사 및 빌드
+COPY src ./src
+RUN gradle bootJar --no-daemon
 
-      # 2. JDK 11 설정
-      - name: Set up JDK 11
-        uses: actions/setup-java@v4
-        with:
-          java-version: '11'
-          distribution: 'temurin'
+# ===========================================
+# 실행 스테이지
+# ===========================================
+# amazoncorretto:11-alpine 이미지는 가볍지만, 운영 편의를 위해 'full' 태그를 사용하거나, 
+# 'debian' 기반 이미지를 사용하는 것을 고려할 수 있습니다. 여기서는 alpine을 유지합니다.
+FROM amazoncorretto:11-alpine
 
-      # 3. Gradle Wrapper JAR 직접 다운로드 (없는 경우)
-      - name: Download Gradle Wrapper JAR
-        run: |
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Downloading Gradle Wrapper JAR..."
-            mkdir -p gradle/wrapper
-            curl -sL https://github.com/gradle/gradle/raw/v7.6.1/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
-            
-            # gradle-wrapper.properties 파일도 없으면 생성
-            if [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
-              echo "distributionUrl=https\://services.gradle.org/distributions/gradle-7.6.1-bin.zip" > gradle/wrapper/gradle-wrapper.properties
-            fi
-          fi
+WORKDIR /app
 
-      # 4. Gradle 빌드 권한 부여
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+# 기본 패키지 및 타임존 설정
+# curl을 추가하여 HEALTHCHECK에 wget 대신 사용 (더 흔한 방식)
+RUN apk add --no-cache tzdata curl && \
+    cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
+    echo "Asia/Seoul" > /etc/timezone
 
-      # 5. Gradle 빌드 (bootJar)
-      - name: Build with Gradle
-        run: ./gradlew bootJar --no-daemon
+# EFS 액세스 포인트와 UID/GID를 일치시키기 위해 명시적으로 1000으로 설정 (핵심 수정)
+# EFS 액세스 포인트 설정: POSIX 사용자 1000:1000과 일치해야 합니다.
+RUN addgroup -S spring -g 1000 && adduser -S spring -G spring -u 1000
 
-      # 6. AWS 자격 증명 설정 (OIDC + Role 방식)
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+# EFS 마운트 포인트 디렉토리 생성 및 소유권 변경
+RUN mkdir -p /mnt/efs/uploads && chown -R spring:spring /mnt/efs
 
-      # 7. ECR 로그인
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+# JAR 파일 복사 및 소유권 변경
+COPY --from=build /app/build/libs/app.jar app.jar
+RUN chown spring:spring app.jar
 
-      # 8. Docker 이미지 빌드 및 푸시
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+# spring 사용자로 전환
+USER spring:spring
 
-      # 9. ECS 태스크 정의에 새 이미지 ID 반영
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.image }}
+# 환경변수 (민감 정보는 제거하고, ECS 태스크 정의를 통해 Secrets Manager로 주입)
+# JVM 최적화: 컨테이너 메모리를 자동으로 인식하도록 설정
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:+UseG1GC"
+ENV EFS_MOUNT_PATH=/mnt/efs/uploads
 
-      # 10. ECS 서비스에 새 태스크 정의 배포
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+# DB 관련 환경변수 (제거됨): ECS 태스크 정의의 'secrets' 섹션을 통해 주입해야 합니다.
+# ENV DB_HOST=...
+# ENV DB_PASSWORD=...
 
-      # 11. 배포 완료 알림
-      - name: Deployment completed
-        run: |
-          echo "🚀 Deployment completed successfully!"
-          echo "Image: ${{ steps.build-image.outputs.image }}"
+# 헬스체크: curl을 사용하여 더 신뢰성 높은 체크
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl --fail http://localhost:8080/api/health || exit 1
+
+EXPOSE 8080
+
+# 애플리케이션 실행
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
