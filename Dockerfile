@@ -31,7 +31,7 @@ RUN apk add --no-cache tzdata curl && \
 RUN addgroup -S spring -g 1000 && adduser -S spring -G spring -u 1000
 
 # EFS 마운트 포인트 디렉토리 생성
-RUN mkdir -p /mnt/efs/uploads && chown -R spring:spring /mnt/efs
+RUN mkdir -p /upload && chown -R spring:spring /upload
 
 # JAR 파일 복사
 COPY --from=build /app/build/libs/app.jar app.jar
