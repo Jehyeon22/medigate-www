@@ -49,7 +49,7 @@
                     "sourceVolume": "efs-volume"
                 }
             ],
-            "name": "sample-app",
+            "name": "sample-task",
             "portMappings": [
                 {
                     "containerPort": 8080,
