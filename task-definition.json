@@ -1,146 +1,96 @@
 {
-    "compatibilities": [
-        "EC2"
-    ],
-    "containerDefinitions": [
+  "family": "sample-task",
+  "executionRoleArn": "arn:aws:iam::304936889031:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::304936889031:role/ecsTaskRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "EC2"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "volumes": [
+    {
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-0cfcb86b521149e46",
+        "rootDirectory": "/",
+        "transitEncryption": "ENABLED"
+      },
+      "name": "efs-volume"
+    }
+  ],
+  "containerDefinitions": [
+    {
+      "name": "sample-task",
+      "image": "304936889031.dkr.ecr.ap-northeast-2.amazonaws.com/sample-spring-app:latest", 
+      "cpu": 512,
+      "memory": 1024,
+      "memoryReservation": 512,
+      "essential": true,
+      "portMappings": [
         {
-            "cpu": 512,
-            "environment": [
-                {
-                    "name": "EFS_MOUNT_PATH",
-                    "value": "/mnt/efs/uploads"
-                },
-                {
-                    "name": "DB_NAME",
-                    "value": "sampledb"
-                },
-                {
-                    "name": "JAVA_OPTS",
-                    "value": "-Xms512m -Xmx1024m -XX:+UseG1GC"
-                }
-            ],
-            "essential": true,
-            "healthCheck": {
-                "command": [
-                    "CMD-SHELL",
-                    "curl -f http://localhost:8080/api/health || exit 1"
-                ],
-                "interval": 30,
-                "retries": 3,
-                "startPeriod": 60,
-                "timeout": 5
-            },
-            "image": "304936889031.dkr.ecr.ap-northeast-2.amazonaws.com/sample-spring-app:9bc032c5ed913b137a684c42363f11eaad3575a7",
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "/ecs/sample-app",
-                    "awslogs-create-group": "true",
-                    "awslogs-region": "ap-northeast-2",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            },
-            "memory": 1024,
-            "memoryReservation": 512,
-            "mountPoints": [
-                {
-                    "containerPath": "/mnt/efs/uploads",
-                    "readOnly": false,
-                    "sourceVolume": "efs-volume"
-                }
-            ],
-            "name": "sample-task",
-            "portMappings": [
-                {
-                    "containerPort": 8080,
-                    "hostPort": 8080,
-                    "protocol": "tcp"
-                }
-            ],
-            "secrets": [
-                {
-                    "name": "DB_HOST",
-                    "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:host::"
-                },
-                {
-                    "name": "DB_PORT",
-                    "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:port::"
-                },
-                {
-                    "name": "DB_USERNAME",
-                    "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:username::"
-                },
-                {
-                    "name": "DB_PASSWORD",
-                    "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:password::"
-                }
-            ],
-            "systemControls": [],
-            "volumesFrom": []
+          "containerPort": 8080,
+          "hostPort": 0,
+          "protocol": "tcp"
         }
-    ],
-    "executionRoleArn": "arn:aws:iam::304936889031:role/ecsTaskExecutionRole",
-    "family": "sample-task",
-    "networkMode": "awsvpc",
-    "placementConstraints": [],
-    "registeredAt": "2025-12-08T01:38:26.200Z",
-    "registeredBy": "arn:aws:sts::304936889031:assumed-role/github-actions-ecs-role/GitHubActions",
-    "requiresAttributes": [
+      ],
+      "environment": [
         {
-            "name": "ecs.capability.execution-role-awslogs"
+          "name": "EFS_MOUNT_PATH",
+          "value": "/mnt/efs/uploads"
         },
         {
-            "name": "com.amazonaws.ecs.capability.ecr-auth"
+          "name": "DB_NAME",
+          "value": "sampledb"
         },
         {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.21"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.task-iam-role"
-        },
-        {
-            "name": "ecs.capability.container-health-check"
-        },
-        {
-            "name": "ecs.capability.execution-role-ecr-pull"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
-        },
-        {
-            "name": "ecs.capability.efsAuth"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
-        },
-        {
-            "name": "ecs.capability.secrets.asm.environment-variables"
-        },
-        {
-            "name": "ecs.capability.efs"
-        },
-        {
-            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.25"
+          "name": "JAVA_OPTS",
+          "value": "-Xms512m -Xmx1024m -XX:+UseG1GC"
         }
-    ],
-    "requiresCompatibilities": [
-        "EC2"
-    ],
-    "status": "ACTIVE",
-    "taskDefinitionArn": "arn:aws:ecs:ap-northeast-2:304936889031:task-definition/sample-task:24",
-    "taskRoleArn": "arn:aws:iam::304936889031:role/ecsTaskRole",
-    "volumes": [
+      ],
+      "secrets": [
         {
-            "efsVolumeConfiguration": {
-                "fileSystemId": "fs-0cfcb86b521149e46",
-                "rootDirectory": "/",
-                "transitEncryption": "ENABLED"
-            },
-            "name": "efs-volume"
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:host::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:port::"
+        },
+        {
+          "name": "DB_USERNAME",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:username::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:304936889031:secret:test/rds-tDJQVH:password::"
         }
-    ],
-    "tags": []
+      ],
+      "mountPoints": [
+        {
+          "containerPath": "/mnt/efs/uploads",
+          "readOnly": false,
+          "sourceVolume": "efs-volume"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/sample-app",
+          "awslogs-create-group": "true",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/api/health || exit 1"
+        ],
+        "interval": 30,
+        "retries": 3,
+        "startPeriod": 60,
+        "timeout": 5
+      }
+    }
+  ]
 }
