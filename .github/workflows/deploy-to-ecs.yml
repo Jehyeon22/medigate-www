@@ -11,7 +11,7 @@ env:
   ECR_REPOSITORY: sample-spring-app
   ECS_CLUSTER: test-ecs-cluster
   ECS_SERVICE: sample-task-service
-  CONTAINER_NAME: sample-app # <--- ✅ 컨테이너 이름은 'sample-app'을 사용합니다.
+  CONTAINER_NAME: sample-task # <--- ✅ 컨테이너 이름은 'sample-task'을 사용합니다.
 
 jobs:
   deploy:
