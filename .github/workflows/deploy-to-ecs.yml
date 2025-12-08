@@ -11,8 +11,7 @@ env:
   ECR_REPOSITORY: sample-spring-app
   ECS_CLUSTER: test-ecs-cluster
   ECS_SERVICE: sample-task-service
-  CONTAINER_NAME: sample-app
-
+  CONTAINER_NAME: sample-task
 jobs:
   deploy:
     name: Build and Deploy to ECS
