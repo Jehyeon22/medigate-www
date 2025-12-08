@@ -11,7 +11,8 @@ env:
   ECR_REPOSITORY: sample-spring-app
   ECS_CLUSTER: test-ecs-cluster
   ECS_SERVICE: sample-task-service
-  CONTAINER_NAME: sample-app
+  CONTAINER_NAME: sample-app # <--- ✅ 컨테이너 이름은 'sample-app'을 사용합니다.
+
 jobs:
   deploy:
     name: Build and Deploy to ECS
@@ -87,7 +88,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: ${{ env.CONTAINER_NAME }}
+          container-name: ${{ env.CONTAINER_NAME }} # sample-app 사용
           image: ${{ steps.build-image.outputs.image }}
 
       # 10. ECS 서비스에 새 태스크 정의 배포
