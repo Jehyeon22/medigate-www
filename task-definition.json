@@ -53,7 +53,7 @@
             "portMappings": [
                 {
                     "containerPort": 8080,
-                    "hostPort": 0,
+                    "hostPort": 8080,
                     "protocol": "tcp"
                 }
             ],
@@ -81,7 +81,7 @@
     ],
     "executionRoleArn": "arn:aws:iam::304936889031:role/ecsTaskExecutionRole",
     "family": "sample-task",
-    "networkMode": "bridge",
+    "networkMode": "awsvpc",
     "placementConstraints": [],
     "registeredAt": "2025-12-08T01:38:26.200Z",
     "registeredBy": "arn:aws:sts::304936889031:assumed-role/github-actions-ecs-role/GitHubActions",
@@ -129,7 +129,6 @@
     "requiresCompatibilities": [
         "EC2"
     ],
-    "revision": 24,
     "status": "ACTIVE",
     "taskDefinitionArn": "arn:aws:ecs:ap-northeast-2:304936889031:task-definition/sample-task:24",
     "taskRoleArn": "arn:aws:iam::304936889031:role/ecsTaskRole",
